@@ -1,0 +1,125 @@
+.task-container {
+  max-width: 600px;
+  margin: 40px auto;
+  font-family: sans-serif;
+  font-size: 16px;
+  color: #333;
+}
+
+.project {
+  margin-bottom: 30px;
+}
+
+.project h3 {
+  margin-bottom: 12px;
+  font-size: 18px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 4px;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #ccc;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.toggle-btn {
+  width: 18px;
+  height: 18px;
+  border: 2px solid gray;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.toggle-btn.done {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.add-section {
+  max-width: 600px;
+  margin: 30px auto;
+  font-family: sans-serif;
+}
+
+.add-section input[type="text"], .add-section select {
+  padding: 6px 8px;
+  font-size: 14px;
+  margin-right: 8px;
+  width: 60%;
+  max-width: 300px;
+}
+
+.add-section button {
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.project-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px; /* same as original h3 margin-bottom */
+  }
+
+  .project-header h3 {
+    margin: 0; /* remove bottom margin so button aligns vertically */
+    font-size: 18px;
+  }
+
+  .delete-project-btn {
+    background: transparent;
+    border: none;
+    color: #c00;
+    cursor: pointer;
+    font-weight: normal;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+
+  .delete-project-btn:hover {
+    background-color: #fdd;
+  }
+
+  .task {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid #ccc;
+    padding: 10px 12px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+  }
+
+  .task span:first-child {
+    flex-grow: 1; /* task name takes all available space */
+  }
+
+  .toggle-btn {
+    margin-right: 6px; /* space between toggle and delete button */
+  }
+
+  .delete-task-btn {
+    background: transparent;
+    border: none;
+    color: #c00;
+    font-weight: bold;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+
+  .delete-task-btn:hover {
+    background-color: #fdd;
+  }
