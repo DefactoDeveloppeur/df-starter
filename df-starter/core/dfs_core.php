@@ -5,8 +5,10 @@ class DFS_core {
     const CPT_OPTION_KEY = 'df_show_projets';
 
     public function __construct() {
-        include_once(MY_PLUGIN_PATH."/core/capabilities/class-df_capabilities.php");
-        register_activation_hook(__FILE__, [$this, 'add_client_df_role']);
+        include_once(MY_PLUGIN_PATH."/core/class/class-df_capabilities.php");
+        include_once(MY_PLUGIN_PATH."/core/class/class-df_noindex_alert.php");
+
+        //$this->add_client_df_role();
         $this->add_dynamic_roles();
         add_action('admin_menu', [$this, 'remove_menus_for_client_df'], 999);
         add_action('current_screen', [$this, 'restrict_admin_access']);
@@ -22,10 +24,12 @@ class DFS_core {
         add_filter('manage_posts_columns', [$this, 'remove_posts_columns'], 10, 2 );
         add_filter('pre_set_site_transient_update_plugins', [$this, 'df_check_for_updates']);
         add_filter('upload_mimes', [$this, 'df_svg_mime_type'] );
+
         new Df_capabilities();
+        new DF_Noindex_Alert();
     }
 
-    public function add_client_df_role() {
+    public static function add_client_df_role() {
 
         if(wp_roles()->is_role( 'client_df' ))
             remove_role('client_df');

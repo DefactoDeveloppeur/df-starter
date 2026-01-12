@@ -5,7 +5,7 @@
 class DFS_ContactPlugin {
     public function __construct() {
         add_action('admin_footer', [$this, 'contact_overlay']);
-        add_action('wp_footer', [$this, 'contact_overlay']);
+        //add_action('wp_footer', [$this, 'contact_overlay']);
         add_action('wp_ajax_send_mail', [$this, 'handle_send_mail']);
     }
 

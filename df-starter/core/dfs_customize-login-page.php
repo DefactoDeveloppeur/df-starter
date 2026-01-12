@@ -13,7 +13,7 @@ class DFS_CustomizePlugin {
     }
 
     function myplugin_enqueue_media_uploader($hook) {
-        if ($hook !== 'defacto-starter_page_df-customize') {
+        if ($hook !== 'defacto-starter_page_df-customize-login-page') {
             return;
         }
         wp_enqueue_media();
@@ -263,6 +263,10 @@ class DFS_CustomizePlugin {
 
             .login h1 a {
                 background-image: url('<?= esc_url($logo_url) ?>')  !important;
+                background-size: contain !important;
+                background-position: center !important;
+                height: 100px !important;
+                width: 80% !important;
             }
 
             #nav a,
