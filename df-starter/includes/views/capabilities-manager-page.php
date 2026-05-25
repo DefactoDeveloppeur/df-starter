@@ -46,26 +46,44 @@ $active  = isset($_GET['updated']);
                 <div class="dfs-cap-groups">
                     <?php foreach ($groups as $key => $group_caps) : ?>
                         <div class="dfs-cap-group">
-                            <div class="dfs-cap-group-head">
-                                <h3><?php echo esc_html(DFS_Capabilities_Manager::friendly_group($key)); ?></h3>
-                                <label class="dfs-cap-toggle-all">
-                                    <input type="checkbox" class="dfs-cap-group-toggle" />
-                                    <span><?php esc_html_e('Tout cocher', 'df-starter'); ?></span>
-                                </label>
-                            </div>
-                            <div class="dfs-cap-list">
-                                <?php foreach ($group_caps as $cap) : ?>
-                                    <label class="dfs-cap-item" data-cap="<?php echo esc_attr($cap); ?>">
-                                        <input type="checkbox"
-                                               class="dfs-cap-checkbox"
-                                               name="dfs_caps[]"
-                                               value="<?php echo esc_attr($cap); ?>"
-                                               <?php checked(!empty($granted[$cap])); ?> />
-                                        <span class="dfs-cap-name"><?php echo esc_html(DFS_Capabilities_Manager::cap_label($cap)); ?></span>
-                                        <code class="dfs-cap-slug"><?php echo esc_html($cap); ?></code>
-                                    </label>
-                                <?php endforeach; ?>
-                            </div>
+                            <h3 class="dfs-cap-group-title">
+                                <?php echo esc_html(DFS_Capabilities_Manager::friendly_group($key)); ?>
+                                <span class="dfs-cap-count"><?php echo (int) count($group_caps); ?></span>
+                            </h3>
+                            <table class="wp-list-table widefat striped dfs-cap-table">
+                                <thead>
+                                    <tr>
+                                        <td class="dfs-cap-check check-column">
+                                            <input type="checkbox"
+                                                   class="dfs-cap-group-toggle"
+                                                   title="<?php esc_attr_e('Tout cocher / décocher', 'df-starter'); ?>" />
+                                        </td>
+                                        <th scope="col"><?php esc_html_e('Capacité', 'df-starter'); ?></th>
+                                        <th scope="col"><?php esc_html_e('Identifiant technique', 'df-starter'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($group_caps as $cap) :
+                                        $id = 'dfs-cap-' . sanitize_html_class($cap); ?>
+                                        <tr class="dfs-cap-item" data-cap="<?php echo esc_attr($cap); ?>">
+                                            <th scope="row" class="dfs-cap-check check-column">
+                                                <input type="checkbox"
+                                                       id="<?php echo esc_attr($id); ?>"
+                                                       class="dfs-cap-checkbox"
+                                                       name="dfs_caps[]"
+                                                       value="<?php echo esc_attr($cap); ?>"
+                                                       <?php checked(!empty($granted[$cap])); ?> />
+                                            </th>
+                                            <td>
+                                                <label for="<?php echo esc_attr($id); ?>">
+                                                    <?php echo esc_html(DFS_Capabilities_Manager::cap_label($cap)); ?>
+                                                </label>
+                                            </td>
+                                            <td><code><?php echo esc_html($cap); ?></code></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
                         </div>
                     <?php endforeach; ?>
                 </div>

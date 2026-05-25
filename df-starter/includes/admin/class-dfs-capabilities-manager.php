@@ -39,7 +39,7 @@ class DFS_Capabilities_Manager
             'dfs-capabilities-manager',
             DFS_URL . 'assets/js/capabilities-manager.js',
             [],
-            DFS_VERSION,
+            DFS_Assets::asset_version('assets/js/capabilities-manager.js'),
             true
         );
     }

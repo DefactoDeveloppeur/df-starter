@@ -18,7 +18,7 @@ class DFS_Assets
             'dfs-admin',
             DFS_URL . 'assets/css/admin.css',
             [],
-            DFS_VERSION
+            self::asset_version('assets/css/admin.css')
         );
     }
 
@@ -28,7 +28,17 @@ class DFS_Assets
             'dfs-front',
             DFS_URL . 'assets/css/front.css',
             [],
-            DFS_VERSION
+            self::asset_version('assets/css/front.css')
         );
+    }
+
+    /**
+     * Version basée sur la date de modification du fichier pour casser le cache
+     * navigateur à chaque changement, avec repli sur DFS_VERSION.
+     */
+    public static function asset_version(string $relative_path): string
+    {
+        $file = DFS_PATH . $relative_path;
+        return file_exists($file) ? (string) filemtime($file) : DFS_VERSION;
     }
 }

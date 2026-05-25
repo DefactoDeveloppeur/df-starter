@@ -315,8 +315,9 @@ body {
 
 .dfs-cap-groups {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+    gap: 24px;
+    align-items: start;
 }
 
 .dfs-cap-group {
@@ -327,57 +328,60 @@ body {
     overflow: hidden;
 }
 
-.dfs-cap-group-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 16px 20px;
-    background: linear-gradient(135deg, rgba(255, 102, 0, 1) 0%, rgba(255, 137, 64, 1) 100%);
-    color: #fff;
-}
-
-.dfs-cap-group-head h3 {
-    margin: 0;
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: #fff;
-}
-
-.dfs-cap-toggle-all {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.dfs-cap-list {
-    padding: 8px 0;
-}
-
-.dfs-cap-item {
+.dfs-cap-group-title {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 20px;
-    cursor: pointer;
-    transition: background 0.15s ease;
+    margin: 0;
+    padding: 14px 20px;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(255, 102, 0, 1) 0%, rgba(255, 137, 64, 1) 100%);
 }
 
-.dfs-cap-item:hover {
+.dfs-cap-count {
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.dfs-cap-table {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+}
+
+.dfs-cap-table thead th,
+.dfs-cap-table thead td {
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.dfs-cap-table .dfs-cap-check {
+    width: 40px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.dfs-cap-table tbody tr:hover {
     background: #fff7f2;
 }
 
-.dfs-cap-name {
+.dfs-cap-table td label {
+    display: block;
     font-weight: 500;
     color: #1e1e1e;
+    cursor: pointer;
 }
 
-.dfs-cap-slug {
-    margin-left: auto;
-    font-size: 0.72rem;
+.dfs-cap-table code {
+    font-size: 0.75rem;
     color: #9ca3af;
     background: #f3f4f6;
     padding: 2px 8px;
