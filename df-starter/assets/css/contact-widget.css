@@ -1,0 +1,96 @@
+#client-help-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #0073aa;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 9999;
+    transition: background 0.3s ease, transform 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+#client-help-btn:hover {
+    background: #005f8d;
+    transform: scale(1.05);
+}
+
+#client-help-form {
+    position: fixed;
+    bottom: 100px;
+    right: 20px;
+    width: 260px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    padding: 15px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    animation: dfsHelpFadeIn 0.3s ease;
+}
+
+#client-help-form[hidden] {
+    display: none;
+}
+
+#client-help-form input,
+#client-help-form textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+#client-help-form textarea {
+    margin-top: 5px;
+    height: 100px;
+    resize: none;
+}
+
+#client-help-form button {
+    margin-top: 10px;
+    background-color: #0073aa;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    width: 100%;
+    font-size: 15px;
+}
+
+#client-help-form button:hover {
+    background-color: #005f8d;
+}
+
+#client-help-status {
+    color: green;
+    font-weight: bold;
+    margin-bottom: 8px;
+    animation: dfsHelpFadeIn 0.3s ease;
+}
+
+#client-help-status[hidden] {
+    display: none;
+}
+
+@keyframes dfsHelpFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

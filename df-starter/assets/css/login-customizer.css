@@ -1,0 +1,76 @@
+.dfs-login-customizer.page-container {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    box-sizing: border-box;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.dfs-login-customizer .customize-panel,
+.dfs-login-customizer .login-panel {
+    flex: 1;
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 6px;
+    box-sizing: border-box;
+    max-width: 600px;
+}
+
+.dfs-login-customizer .customize-panel { background: #fafafa; }
+.dfs-login-customizer .login-panel { background: #fff; }
+
+.dfs-login-customizer .customize-panel h1,
+.dfs-login-customizer .login-panel h1 {
+    margin-bottom: 20px;
+}
+
+.dfs-login-customizer .dfs-actions-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.dfs-login-customizer .dfs-field-label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.dfs-login-customizer input[type="color"] {
+    width: 100%;
+    height: 50px;
+    border: none;
+    cursor: pointer;
+}
+
+.dfs-login-customizer .dfs-logo-preview {
+    border: 1px solid #ccc;
+    padding: 15px;
+    background: #fafafa;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.dfs-login-customizer .dfs-logo-preview img {
+    max-width: 100%;
+    height: auto;
+    max-height: 200px;
+    object-fit: contain;
+    display: inline-block;
+}
+
+@media (max-width: 1280px) {
+    .dfs-login-customizer.page-container {
+        flex-direction: column;
+        padding: 10px;
+    }
+    .dfs-login-customizer .customize-panel,
+    .dfs-login-customizer .login-panel {
+        max-width: 100%;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .dfs-login-customizer .login-panel { min-height: 800px; }
+    .dfs-login-customizer .login-panel iframe { min-height: 800px; }
+}
