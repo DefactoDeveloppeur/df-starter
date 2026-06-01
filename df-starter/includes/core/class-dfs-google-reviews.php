@@ -88,7 +88,7 @@ class DFS_Google_Reviews
             '[df-google-reviews count="3"]'           => __('limite le carousel à 3 avis (max 5, limite de l\'API)', 'df-starter'),
             '[df-google-reviews navigation="true" pagination="true"]' => __('affiche les flèches et les points de navigation', 'df-starter'),
             '[df-google-reviews loop="true" autoplay="4000"]'         => __('défilement infini + lecture auto toutes les 4 s', 'df-starter'),
-            '[df-google-reviews slides_per_view="1" slides_per_view_tablet="2" slides_per_view_desktop="3"]' => __('1 slide sur mobile, 2 sur tablette, 3 sur ordinateur', 'df-starter'),
+            '[df-google-reviews slides_per_view="3"]'                 => __('1 slide sur mobile/tablette, 3 sur ordinateur', 'df-starter'),
         ];
 
         echo '<table class="widefat striped" style="max-width:780px;margin-bottom:12px">';
@@ -105,7 +105,7 @@ class DFS_Google_Reviews
         echo '</tbody></table>';
 
         echo '<p class="description" style="max-width:780px">'
-            . esc_html__('Attributs disponibles : show_rating, count (1-5), slides_per_view (+ _tablet / _desktop), space_between (px), loop, navigation, pagination, autoplay (true ou délai en ms). Les attributs se combinent.', 'df-starter')
+            . esc_html__('Attributs disponibles : show_rating, count (1-5), slides_per_view (nombre sur ordinateur ; mobile/tablette = 1), space_between (px), loop, navigation, pagination, autoplay (true ou délai en ms). Les attributs se combinent.', 'df-starter')
             . '</p>';
 
         echo '<p><a href="https://developers.google.com/maps/documentation/places/web-service/place-id" target="_blank" rel="noopener">'
@@ -159,16 +159,14 @@ class DFS_Google_Reviews
     public function render_shortcode($atts): string
     {
         $atts = shortcode_atts([
-            'show_rating'             => 'true',
-            'count'                   => 5,
-            'slides_per_view'         => 1,
-            'slides_per_view_tablet'  => '',
-            'slides_per_view_desktop' => '',
-            'space_between'           => 0,
-            'loop'                    => 'false',
-            'navigation'              => 'false',
-            'pagination'              => 'false',
-            'autoplay'                => 'false',
+            'show_rating'     => 'true',
+            'count'           => 5,
+            'slides_per_view' => 1,      // sur ordinateur ; mobile/tablette = 1
+            'space_between'   => 0,
+            'loop'            => 'false',
+            'navigation'      => 'false',
+            'pagination'      => 'false',
+            'autoplay'        => 'false',
         ], $atts, 'df-google-reviews');
 
         $data = $this->get_reviews();
@@ -251,24 +249,19 @@ class DFS_Google_Reviews
      */
     private function build_swiper_options(array $atts, bool $navigation, bool $pagination): array
     {
-        $slides_per_view = $atts['slides_per_view'] === 'auto' ? 'auto' : max(1, (float) $atts['slides_per_view']);
+        // Mobile + tablette : 1 slide. Desktop (≥1024px) : valeur choisie.
+        $desktop_slides = max(1, (int) $atts['slides_per_view']);
 
         $options = [
-            'slidesPerView' => $slides_per_view,
+            'slidesPerView' => 1,
             'spaceBetween'  => max(0, (int) $atts['space_between']),
             'loop'          => filter_var($atts['loop'], FILTER_VALIDATE_BOOLEAN),
         ];
 
-        // Responsive : valeur de base = mobile, paliers tablette (≥768) / desktop (≥1024).
-        $breakpoints = [];
-        if ($atts['slides_per_view_tablet'] !== '') {
-            $breakpoints[768] = ['slidesPerView' => max(1, (float) $atts['slides_per_view_tablet'])];
-        }
-        if ($atts['slides_per_view_desktop'] !== '') {
-            $breakpoints[1024] = ['slidesPerView' => max(1, (float) $atts['slides_per_view_desktop'])];
-        }
-        if ($breakpoints) {
-            $options['breakpoints'] = $breakpoints;
+        if ($desktop_slides > 1) {
+            $options['breakpoints'] = [
+                1024 => ['slidesPerView' => $desktop_slides],
+            ];
         }
 
         if ($navigation) {
