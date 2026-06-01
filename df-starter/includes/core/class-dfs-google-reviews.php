@@ -212,14 +212,18 @@ class DFS_Google_Reviews
                 <div class="swiper-wrapper">
                     <?php foreach ($reviews as $review) : ?>
                         <div class="swiper-slide dfs-review">
-                            <?php if (!empty($review['profile_photo_url'])) : ?>
-                                <img class="dfs-review__avatar" src="<?php echo esc_url($review['profile_photo_url']); ?>" alt="" loading="lazy" width="48" height="48" />
-                            <?php endif; ?>
-                            <span class="dfs-review__author"><?php echo esc_html($review['author_name']); ?></span>
-                            <?php echo $this->render_stars((float) $review['rating']); ?>
-                            <?php if (!empty($review['relative_time'])) : ?>
-                                <span class="dfs-review__date"><?php echo esc_html($review['relative_time']); ?></span>
-                            <?php endif; ?>
+                            <div class="dfs-review-header">
+                                <?php if (!empty($review['profile_photo_url'])) : ?>
+                                    <div class="dfs-review__avatar-wrapper">
+                                        <img class="dfs-review__avatar" src="<?php echo esc_url($review['profile_photo_url']); ?>" alt="" loading="lazy" width="48" height="48" />
+                                    </div>
+                                <?php endif; ?>
+                                <span class="dfs-review__author"><?php echo esc_html($review['author_name']); ?></span>
+                                <?php echo $this->render_stars((float) $review['rating']); ?>
+                                <?php if (!empty($review['relative_time'])) : ?>
+                                    <span class="dfs-review__date"><?php echo esc_html($review['relative_time']); ?></span>
+                                <?php endif; ?>
+                            </div>
                             <div class="dfs-review__text"><?php echo nl2br(esc_html($review['text'])); ?></div>
                         </div>
                     <?php endforeach; ?>
