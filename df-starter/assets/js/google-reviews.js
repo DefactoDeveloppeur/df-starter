@@ -11,6 +11,35 @@
     var cfg = window.dfsGoogleReviews || {};
     var swiperCfg = cfg.swiper || {};
 
+    function buildOptions(el) {
+        // Base : options globales localisées, puis options propres au carousel.
+        var options = Object.assign({}, swiperCfg.options || {});
+
+        if (el.dataset.swiperOptions) {
+            try {
+                Object.assign(options, JSON.parse(el.dataset.swiperOptions));
+            } catch (e) {
+                /* JSON invalide : on garde les défauts. */
+            }
+        }
+
+        // Flèches/points : on résout les éléments DANS ce carousel précis.
+        if (options.navigation === true) {
+            options.navigation = {
+                nextEl: el.querySelector('.swiper-button-next'),
+                prevEl: el.querySelector('.swiper-button-prev')
+            };
+        }
+        if (options.pagination === true) {
+            options.pagination = {
+                el: el.querySelector('.swiper-pagination'),
+                clickable: true
+            };
+        }
+
+        return options;
+    }
+
     function initAll() {
         if (typeof window.Swiper === 'undefined') {
             return;
@@ -21,7 +50,7 @@
                 return;
             }
             el.dataset.dfsInit = '1';
-            new window.Swiper(el, swiperCfg.options || {});
+            new window.Swiper(el, buildOptions(el));
         });
     }
 

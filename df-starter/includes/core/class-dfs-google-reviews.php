@@ -86,9 +86,12 @@ class DFS_Google_Reviews
             '[df-google-reviews]'                     => __('en-tête (note + nombre d\'avis) + carousel des 5 avis', 'df-starter'),
             '[df-google-reviews show_rating="false"]' => __('carousel seul, sans l\'en-tête', 'df-starter'),
             '[df-google-reviews count="3"]'           => __('limite le carousel à 3 avis (max 5, limite de l\'API)', 'df-starter'),
+            '[df-google-reviews navigation="true" pagination="true"]' => __('affiche les flèches et les points de navigation', 'df-starter'),
+            '[df-google-reviews loop="true" autoplay="4000"]'         => __('défilement infini + lecture auto toutes les 4 s', 'df-starter'),
+            '[df-google-reviews slides_per_view="1" slides_per_view_tablet="2" slides_per_view_desktop="3"]' => __('1 slide sur mobile, 2 sur tablette, 3 sur ordinateur', 'df-starter'),
         ];
 
-        echo '<table class="widefat striped" style="max-width:680px;margin-bottom:12px">';
+        echo '<table class="widefat striped" style="max-width:780px;margin-bottom:12px">';
         echo '<thead><tr>'
             . '<th>' . esc_html__('Shortcode', 'df-starter') . '</th>'
             . '<th>' . esc_html__('Résultat', 'df-starter') . '</th>'
@@ -100,6 +103,10 @@ class DFS_Google_Reviews
                 . '</tr>';
         }
         echo '</tbody></table>';
+
+        echo '<p class="description" style="max-width:780px">'
+            . esc_html__('Attributs disponibles : show_rating, count (1-5), slides_per_view (+ _tablet / _desktop), space_between (px), loop, navigation, pagination, autoplay (true ou délai en ms). Les attributs se combinent.', 'df-starter')
+            . '</p>';
 
         echo '<p><a href="https://developers.google.com/maps/documentation/places/web-service/place-id" target="_blank" rel="noopener">'
             . esc_html__('Trouver le Place ID de la fiche', 'df-starter') . '</a></p>';
@@ -152,8 +159,16 @@ class DFS_Google_Reviews
     public function render_shortcode($atts): string
     {
         $atts = shortcode_atts([
-            'show_rating' => 'true',
-            'count'       => 5,
+            'show_rating'             => 'true',
+            'count'                   => 5,
+            'slides_per_view'         => 1,
+            'slides_per_view_tablet'  => '',
+            'slides_per_view_desktop' => '',
+            'space_between'           => 0,
+            'loop'                    => 'false',
+            'navigation'              => 'false',
+            'pagination'              => 'false',
+            'autoplay'                => 'false',
         ], $atts, 'df-google-reviews');
 
         $data = $this->get_reviews();
@@ -171,6 +186,10 @@ class DFS_Google_Reviews
         $show_rating = filter_var($atts['show_rating'], FILTER_VALIDATE_BOOLEAN);
         $count       = max(1, min(5, (int) $atts['count']));
         $reviews     = array_slice($data['reviews'], 0, $count);
+
+        $navigation = filter_var($atts['navigation'], FILTER_VALIDATE_BOOLEAN);
+        $pagination = filter_var($atts['pagination'], FILTER_VALIDATE_BOOLEAN);
+        $options    = $this->build_swiper_options($atts, $navigation, $pagination);
 
         ob_start();
         ?>
@@ -191,7 +210,7 @@ class DFS_Google_Reviews
                 </div>
             <?php endif; ?>
 
-            <div class="dfs-google-reviews__carousel swiper dfs-reviews-swiper">
+            <div class="dfs-google-reviews__carousel swiper dfs-reviews-swiper" data-swiper-options="<?php echo esc_attr((string) wp_json_encode($options)); ?>">
                 <div class="swiper-wrapper">
                     <?php foreach ($reviews as $review) : ?>
                         <div class="swiper-slide dfs-review">
@@ -207,10 +226,66 @@ class DFS_Google_Reviews
                         </div>
                     <?php endforeach; ?>
                 </div>
+
+                <?php if ($pagination) : ?>
+                    <div class="swiper-pagination"></div>
+                <?php endif; ?>
+                <?php if ($navigation) : ?>
+                    <div class="swiper-button-prev"></div>
+                    <div class="swiper-button-next"></div>
+                <?php endif; ?>
             </div>
         </div>
         <?php
         return (string) ob_get_clean();
+    }
+
+    /**
+     * Construit les options Swiper à partir des attributs du shortcode.
+     *
+     * navigation/pagination sont passés en booléens : le JS les remplace par les
+     * éléments DOM scopés à chaque carousel (évite les conflits multi-instances).
+     *
+     * @param array<string, mixed> $atts
+     * @return array<string, mixed>
+     */
+    private function build_swiper_options(array $atts, bool $navigation, bool $pagination): array
+    {
+        $slides_per_view = $atts['slides_per_view'] === 'auto' ? 'auto' : max(1, (float) $atts['slides_per_view']);
+
+        $options = [
+            'slidesPerView' => $slides_per_view,
+            'spaceBetween'  => max(0, (int) $atts['space_between']),
+            'loop'          => filter_var($atts['loop'], FILTER_VALIDATE_BOOLEAN),
+        ];
+
+        // Responsive : valeur de base = mobile, paliers tablette (≥768) / desktop (≥1024).
+        $breakpoints = [];
+        if ($atts['slides_per_view_tablet'] !== '') {
+            $breakpoints[768] = ['slidesPerView' => max(1, (float) $atts['slides_per_view_tablet'])];
+        }
+        if ($atts['slides_per_view_desktop'] !== '') {
+            $breakpoints[1024] = ['slidesPerView' => max(1, (float) $atts['slides_per_view_desktop'])];
+        }
+        if ($breakpoints) {
+            $options['breakpoints'] = $breakpoints;
+        }
+
+        if ($navigation) {
+            $options['navigation'] = true;
+        }
+        if ($pagination) {
+            $options['pagination'] = true;
+        }
+
+        // autoplay="true" → 3s ; autoplay="4000" → délai en ms.
+        $autoplay = strtolower((string) $atts['autoplay']);
+        if ($autoplay !== '' && $autoplay !== 'false' && $autoplay !== '0') {
+            $delay = is_numeric($autoplay) ? max(500, (int) $autoplay) : 3000;
+            $options['autoplay'] = ['delay' => $delay, 'disableOnInteraction' => false];
+        }
+
+        return $options;
     }
 
     /**
