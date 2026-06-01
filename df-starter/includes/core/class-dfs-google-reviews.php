@@ -26,6 +26,9 @@ class DFS_Google_Reviews
     /** Empêche de localiser/charger les assets plusieurs fois sur une même page. */
     private $assets_done = false;
 
+    /** Dernière raison d'échec de récupération (pour le diagnostic admin). */
+    private $last_error = '';
+
     public function register(): void
     {
         add_action('admin_init', [$this, 'register_settings']);
@@ -156,10 +159,11 @@ class DFS_Google_Reviews
         $data = $this->get_reviews();
 
         if (!$data || empty($data['reviews'])) {
-            // Indice discret pour les admins, rien pour les visiteurs.
-            return current_user_can('manage_options')
-                ? '<!-- df-google-reviews : configuration manquante ou aucun avis disponible -->'
-                : '';
+            // Rien pour les visiteurs ; diagnostic détaillé pour les admins.
+            if (!current_user_can('manage_options')) {
+                return '';
+            }
+            return '<!-- df-google-reviews : ' . esc_html($this->last_error ?: 'aucun avis disponible') . ' -->';
         }
 
         $this->enqueue_assets();
@@ -276,6 +280,7 @@ class DFS_Google_Reviews
         $place_id = trim((string) get_option(self::OPTION_PLACE_ID, ''));
 
         if ($api_key === '' || $place_id === '') {
+            $this->last_error = 'configuration manquante (clé API et/ou Place ID)';
             return null;
         }
 
@@ -287,8 +292,11 @@ class DFS_Google_Reviews
             return $cached;
         }
 
-        // Évite de marteler l'API juste après une erreur.
-        if (get_transient('dfs_gmb_reviews_fail_' . $hash)) {
+        // Les admins peuvent réessayer immédiatement après correction ; le
+        // back-off anti-martèlement ne s'applique qu'aux visiteurs.
+        $is_admin = current_user_can('manage_options');
+        if (!$is_admin && get_transient('dfs_gmb_reviews_fail_' . $hash)) {
+            $this->last_error = 'nouvelle tentative en pause (erreur récente)';
             return null;
         }
 
@@ -303,6 +311,9 @@ class DFS_Google_Reviews
         $response = wp_remote_get($url, ['timeout' => 8]);
 
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            $this->last_error = is_wp_error($response)
+                ? 'erreur réseau : ' . $response->get_error_message()
+                : 'réponse HTTP ' . wp_remote_retrieve_response_code($response);
             set_transient('dfs_gmb_reviews_fail_' . $hash, 1, self::FAIL_TTL);
             return null;
         }
@@ -310,6 +321,9 @@ class DFS_Google_Reviews
         $body = json_decode(wp_remote_retrieve_body($response), true);
 
         if (!is_array($body) || ($body['status'] ?? '') !== 'OK' || empty($body['result'])) {
+            $status  = is_array($body) ? (string) ($body['status'] ?? 'réponse illisible') : 'réponse illisible';
+            $message = is_array($body) && !empty($body['error_message']) ? ' – ' . $body['error_message'] : '';
+            $this->last_error = 'API Google : ' . $status . $message;
             set_transient('dfs_gmb_reviews_fail_' . $hash, 1, self::FAIL_TTL);
             return null;
         }
