@@ -77,8 +77,27 @@ class DFS_Google_Reviews
 
     public function render_section_intro(): void
     {
-        echo '<p>' . esc_html__('Renseignez une clé API Google Cloud (API « Places » activée) et le Place ID de la fiche. Affichez ensuite les avis avec le shortcode :', 'df-starter')
-            . ' <code>[df-google-reviews]</code></p>';
+        echo '<p>' . esc_html__('Renseignez une clé API Google Cloud (API « Places » activée) et le Place ID de la fiche. Affichez ensuite les avis avec le shortcode :', 'df-starter') . '</p>';
+
+        $examples = [
+            '[df-google-reviews]'                     => __('en-tête (note + nombre d\'avis) + carousel des 5 avis', 'df-starter'),
+            '[df-google-reviews show_rating="false"]' => __('carousel seul, sans l\'en-tête', 'df-starter'),
+            '[df-google-reviews count="3"]'           => __('limite le carousel à 3 avis (max 5, limite de l\'API)', 'df-starter'),
+        ];
+
+        echo '<table class="widefat striped" style="max-width:680px;margin-bottom:12px">';
+        echo '<thead><tr>'
+            . '<th>' . esc_html__('Shortcode', 'df-starter') . '</th>'
+            . '<th>' . esc_html__('Résultat', 'df-starter') . '</th>'
+            . '</tr></thead><tbody>';
+        foreach ($examples as $shortcode => $description) {
+            echo '<tr>'
+                . '<td><code>' . esc_html($shortcode) . '</code></td>'
+                . '<td>' . esc_html($description) . '</td>'
+                . '</tr>';
+        }
+        echo '</tbody></table>';
+
         echo '<p><a href="https://developers.google.com/maps/documentation/places/web-service/place-id" target="_blank" rel="noopener">'
             . esc_html__('Trouver le Place ID de la fiche', 'df-starter') . '</a></p>';
     }
@@ -86,10 +105,11 @@ class DFS_Google_Reviews
     public function render_field_api_key(): void
     {
         printf(
-            '<input type="text" class="regular-text" name="%s" value="%s" autocomplete="off" />',
+            '<input type="password" class="regular-text" name="%1$s" value="%2$s" autocomplete="off" spellcheck="false" />',
             esc_attr(self::OPTION_API_KEY),
             esc_attr(get_option(self::OPTION_API_KEY, ''))
         );
+        echo '<p class="description">' . esc_html__('Stockée masquée. Pour la remplacer, saisissez une nouvelle clé.', 'df-starter') . '</p>';
     }
 
     public function render_field_place_id(): void
