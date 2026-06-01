@@ -1,0 +1,49 @@
+/**
+ * Styles minimaux pour les avis Google.
+ *
+ * Volontairement limité à l'en-tête (centrage) et aux étoiles dynamiques.
+ * Le carousel et les slides (.dfs-google-reviews__carousel, .dfs-review*) ne
+ * reçoivent AUCUN style ici : à habiller librement dans le thème.
+ * Les couleurs/taille des étoiles sont surchargeables via variables CSS.
+ */
+
+.dfs-google-reviews__header {
+    text-align: center;
+    margin: 0 0 1.5rem;
+}
+
+.dfs-google-reviews__count {
+    display: block;
+    font-weight: 600;
+}
+
+.dfs-google-reviews__rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.dfs-stars {
+    --dfs-star-color: #fbbc04;
+    --dfs-star-empty: #dadce0;
+    --dfs-star-size: 1.25rem;
+
+    position: relative;
+    display: inline-block;
+    white-space: nowrap;
+    font-size: var(--dfs-star-size);
+    line-height: 1;
+}
+
+.dfs-stars__base {
+    color: var(--dfs-star-empty);
+}
+
+.dfs-stars__fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    color: var(--dfs-star-color);
+}

@@ -15,6 +15,7 @@ final class DFS_Plugin
         'core/class-dfs-svg-support.php'           => 'DFS_Svg_Support',
         'core/class-dfs-updater.php'               => 'DFS_Updater',
         'core/class-dfs-capabilities-shortcode.php' => 'DFS_Capabilities_Shortcode',
+        'core/class-dfs-google-reviews.php'        => 'DFS_Google_Reviews',
         'core/class-dfs-noindex-alert.php'         => 'DFS_Noindex_Alert',
         'core/class-dfs-assets.php'                => 'DFS_Assets',
         'admin/class-dfs-settings-page.php'        => 'DFS_Settings_Page',
@@ -22,6 +23,7 @@ final class DFS_Plugin
         'admin/class-dfs-plugin-manager.php'       => 'DFS_Plugin_Manager',
         'admin/class-dfs-capabilities-manager.php' => 'DFS_Capabilities_Manager',
         'admin/class-dfs-contact-widget.php'       => 'DFS_Contact_Widget',
+        'admin/class-dfs-media-filters.php'        => 'DFS_Media_Filters',
     ];
 
     public static function instance(): self
