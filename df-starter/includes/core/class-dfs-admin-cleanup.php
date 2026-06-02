@@ -42,6 +42,15 @@ class DFS_Admin_Cleanup
             return;
         }
 
+        // Ne jamais interférer avec les requêtes AJAX ni les endpoints d'upload :
+        // elles attendent du JSON/texte, un wp_safe_redirect() casserait la
+        // réponse et l'uploader afficherait « HTTP error ». L'upload média passe
+        // par async-upload.php / media-upload.php, dont le screen base
+        // (« async-upload ») n'est pas une page d'admin à restreindre.
+        if (wp_doing_ajax() || in_array($GLOBALS['pagenow'] ?? '', ['async-upload.php', 'media-upload.php'], true)) {
+            return;
+        }
+
         $screen = get_current_screen();
         if (!$screen) {
             return;
