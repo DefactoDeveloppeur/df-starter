@@ -43,6 +43,8 @@ class DFS_Updater
                 'new_version' => $remote_data->version,
                 'url'         => $remote_data->homepage ?? '',
                 'package'     => $remote_data->download_url ?? '',
+                // Icône affichée dans la liste des mises à jour (sinon : pièce de puzzle par défaut).
+                'icons'       => isset($remote_data->icons) ? (array) $remote_data->icons : [],
             ];
         }
 

@@ -89,6 +89,7 @@ class DFS_Google_Reviews
             '[df-google-reviews navigation="true" pagination="true"]' => __('affiche les flèches et les points de navigation', 'df-starter'),
             '[df-google-reviews loop="true" autoplay="4000"]'         => __('défilement infini + lecture auto toutes les 4 s', 'df-starter'),
             '[df-google-reviews slides_per_view="3"]'                 => __('1 slide sur mobile/tablette, 3 sur ordinateur', 'df-starter'),
+            '[df-google-reviews link="true" g_icon="big"]'                         => __('ajoute un lien vers la page d\'avis Google de la fiche + L\'ajout de l\'icône Google', 'df-starter'),
         ];
 
         echo '<table class="widefat striped" style="max-width:780px;margin-bottom:12px">';
@@ -105,7 +106,7 @@ class DFS_Google_Reviews
         echo '</tbody></table>';
 
         echo '<p class="description" style="max-width:780px">'
-            . esc_html__('Attributs disponibles : show_rating, count (1-5), slides_per_view (nombre sur ordinateur ; mobile/tablette = 1), space_between (px), loop, navigation, pagination, autoplay (true ou délai en ms). Les attributs se combinent.', 'df-starter')
+            . esc_html__('Attributs disponibles : show_rating, count (1-5), slides_per_view (nombre sur ordinateur ; mobile/tablette = 1), space_between (px), loop, navigation, pagination, autoplay (true ou délai en ms), link (true pour afficher le lien vers Google), link_text (texte du lien), g_icon ("big" ou "little" pour l\'icone Google). Les attributs se combinent.', 'df-starter')
             . '</p>';
 
         echo '<p><a href="https://developers.google.com/maps/documentation/places/web-service/place-id" target="_blank" rel="noopener">'
@@ -167,6 +168,9 @@ class DFS_Google_Reviews
             'navigation'      => 'false',
             'pagination'      => 'false',
             'autoplay'        => 'false',
+            'g_icon'          => 'none',
+            'link'            => 'true',
+            'link_text'       => '',
         ], $atts, 'df-google-reviews');
 
         $data = $this->get_reviews();
@@ -187,48 +191,81 @@ class DFS_Google_Reviews
 
         $navigation = filter_var($atts['navigation'], FILTER_VALIDATE_BOOLEAN);
         $pagination = filter_var($atts['pagination'], FILTER_VALIDATE_BOOLEAN);
+        $g_icon     = in_array($atts['g_icon'], ["big", "little"]) ? $atts['g_icon'] : "none";
         $options    = $this->build_swiper_options($atts, $navigation, $pagination);
+
+        // Lien vers la page d'avis de la fiche Google My Business.
+        // Le Place ID est lu depuis l'option (toujours disponible), pas depuis le
+        // cache des avis qui pourrait dater d'avant l'ajout de cette donnée.
+        $place_id    = trim((string) get_option(self::OPTION_PLACE_ID, ''));
+        $show_link   = filter_var($atts['link'], FILTER_VALIDATE_BOOLEAN) && $place_id !== '';
+        $link_text   = $atts['link_text'] !== '' ? $atts['link_text'] : __('Voir tous nos avis sur Google', 'df-starter');
+        $reviews_url = 'https://search.google.com/local/reviews?placeid=' . rawurlencode($place_id);
 
         ob_start();
         ?>
         <div class="dfs-google-reviews">
             <?php if ($show_rating) : ?>
                 <div class="dfs-google-reviews__header">
-                    <span class="dfs-google-reviews__count"><?php
-                        /* translators: %s = nombre d'avis */
-                        printf(
-                            esc_html(_n('%s avis', '%s avis', (int) $data['total'], 'df-starter')),
-                            esc_html(number_format_i18n((int) $data['total']))
-                        );
-                    ?></span>
-                    <span class="dfs-google-reviews__rating">
-                        <?php echo $this->render_stars((float) $data['rating']); ?>
-                        <span class="dfs-google-reviews__score"><?php echo esc_html(number_format_i18n((float) $data['rating'], 1)); ?>/5</span>
-                    </span>
+                    <?php if ($show_link) : ?>
+                    <a class="dfs-google-reviews__link" href="<?php echo esc_url($reviews_url); ?>" target="_blank" rel="noopener noreferrer" style="display: inline-block;">
+                    <?php endif; ?>
+                        <?php if($g_icon): ?>
+                        <div class="dfs-google-reviews__g_icon">
+                            <?php if($g_icon == "big"):?>
+                                <img src="<?php echo  DFS_URL . 'assets/google-brand-color.svg' ?>" width="150px" alt="Google reviews Logo">
+                            <?php elseif($g_icon == "little"): ?>
+                                <img src="<?php echo  DFS_URL . 'assets/google.webp' ?>" width="50px" style="border-radius: 100%" alt="Google reviews Logo">
+                            <?php endif; ?>
+                        </div>
+                        <?php endif; ?>
+                        <span class="dfs-google-reviews__count"><?php
+                            /* translators: %s = nombre d'avis */
+                            printf(
+                                esc_html(_n('%s avis', '%s avis', (int) $data['total'], 'df-starter')),
+                                esc_html(number_format_i18n((int) $data['total']))
+                            );
+                        ?></span>
+                        <span class="dfs-google-reviews__rating">
+                            <?php echo $this->render_stars((float) $data['rating']); ?>
+                            <span class="dfs-google-reviews__score"><?php echo esc_html(number_format_i18n((float) $data['rating'], 1)); ?>/5</span>
+                        </span>
+                    <?php if ($show_link) : ?>
+                    </a>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 
-            <div class="dfs-google-reviews__carousel swiper dfs-reviews-swiper" data-swiper-options="<?php echo esc_attr((string) wp_json_encode($options)); ?>">
-                <div class="swiper-wrapper">
-                    <?php foreach ($reviews as $review) : ?>
-                        <div class="swiper-slide dfs-review">
-                            <div class="dfs-review-header">
-                                <?php if (!empty($review['profile_photo_url'])) : ?>
-                                    <div class="dfs-review__avatar-wrapper">
-                                        <img class="dfs-review__avatar" src="<?php echo esc_url($review['profile_photo_url']); ?>" alt="" loading="lazy" width="48" height="48" />
-                                    </div>
-                                <?php endif; ?>
-                                <span class="dfs-review__author"><?php echo esc_html($review['author_name']); ?></span>
-                                <?php echo $this->render_stars((float) $review['rating']); ?>
-                                <?php if (!empty($review['relative_time'])) : ?>
-                                    <span class="dfs-review__date"><?php echo esc_html($review['relative_time']); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            <div class="dfs-review__text"><?php echo nl2br(esc_html($review['text'])); ?></div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
+            <?php if ($show_link && !$show_rating) : ?>
+                <a class="dfs-google-reviews__link" href="<?php echo esc_url($reviews_url); ?>" target="_blank" rel="noopener noreferrer">
+                    <?php echo esc_html($link_text); ?>
+                </a>
+            <?php endif; ?>
 
+            <div class="dfs-google-reviews__carousel-container" style="position: relative;">
+                <div class="dfs-google-reviews__carousel swiper dfs-reviews-swiper" data-swiper-options="<?php echo esc_attr((string) wp_json_encode($options)); ?>">
+                    <div class="swiper-wrapper">
+                        <?php foreach ($reviews as $review) : ?>
+                            <div class="swiper-slide dfs-review">
+                                <div class="dfs-review-header">
+                                    <?php if (!empty($review['profile_photo_url'])) : ?>
+                                        <div class="dfs-review__avatar-wrapper">
+                                            <img class="dfs-review__avatar" src="<?php echo esc_url($review['profile_photo_url']); ?>" alt="" loading="lazy" width="48" height="48" />
+                                        </div>
+                                    <?php endif; ?>
+                                    <span class="dfs-review__author"><?php echo esc_html($review['author_name']); ?></span>
+                                    <?php echo $this->render_stars((float) $review['rating']); ?>
+                                    <?php if (!empty($review['relative_time'])) : ?>
+                                        <span class="dfs-review__date"><?php echo esc_html($review['relative_time']); ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="dfs-review__text"><?php echo nl2br(esc_html($review['text'])); ?></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+
+                </div>
                 <?php if ($pagination) : ?>
                     <div class="swiper-pagination"></div>
                 <?php endif; ?>
@@ -237,6 +274,7 @@ class DFS_Google_Reviews
                     <div class="swiper-button-next"></div>
                 <?php endif; ?>
             </div>
+
         </div>
         <?php
         return (string) ob_get_clean();
@@ -344,7 +382,7 @@ class DFS_Google_Reviews
      * ------------------------------------------------------------------- */
 
     /**
-     * @return array{rating: float, total: int, reviews: array<int, array<string, mixed>>}|null
+     * @return array{rating: float, total: int, place_id: string, reviews: array<int, array<string, mixed>>}|null
      */
     private function get_reviews(): ?array
     {
@@ -415,9 +453,10 @@ class DFS_Google_Reviews
         }
 
         $data = [
-            'rating'  => (float) ($result['rating'] ?? 0),
-            'total'   => (int) ($result['user_ratings_total'] ?? 0),
-            'reviews' => $reviews,
+            'rating'   => (float) ($result['rating'] ?? 0),
+            'total'    => (int) ($result['user_ratings_total'] ?? 0),
+            'place_id' => $place_id,
+            'reviews'  => $reviews,
         ];
 
         set_transient($cache_key, $data, self::CACHE_TTL);

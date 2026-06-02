@@ -47,7 +47,7 @@ class DFS_Admin_Cleanup
             return;
         }
 
-        $allowed = ['edit', 'upload', 'edit.php?post_type=page', 'profile'];
+        $allowed = ['edit', 'upload', 'media', 'edit.php?post_type=page', 'profile'];
 
         $is_allowed = in_array($screen->base, $allowed, true)
             || $screen->post_type === 'page'
