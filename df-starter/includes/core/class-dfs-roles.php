@@ -17,6 +17,38 @@ class DFS_Roles
     public function register(): void
     {
         add_action('init', [$this, 'sync_dynamic_caps']);
+        add_filter('map_meta_cap', [$this, 'allow_attachment_management'], 10, 4);
+    }
+
+    /**
+     * Autorise le rôle Client DF à modifier et supprimer les médias sans lui
+     * accorder les caps de suppression d'articles/pages. Les attachments
+     * partagent le capability_type « post » : on intercepte donc les meta caps
+     * edit_post / delete_post / read_post pour les seuls attachments et on les
+     * ramène à « upload_files », que le rôle possède déjà.
+     *
+     * @param string[] $caps    Caps primitives résolues par WordPress.
+     * @param string   $cap     Meta cap demandée.
+     * @param int      $user_id Utilisateur testé.
+     * @param array    $args    $args[0] = ID de l'objet visé.
+     * @return string[]
+     */
+    public function allow_attachment_management(array $caps, string $cap, int $user_id, array $args): array
+    {
+        if (!in_array($cap, ['edit_post', 'delete_post', 'read_post'], true)) {
+            return $caps;
+        }
+
+        if (empty($args[0]) || !user_can($user_id, self::ROLE_SLUG)) {
+            return $caps;
+        }
+
+        $post = get_post($args[0]);
+        if ($post && $post->post_type === 'attachment') {
+            return ['upload_files'];
+        }
+
+        return $caps;
     }
 
     public static function add_client_df_role(): void

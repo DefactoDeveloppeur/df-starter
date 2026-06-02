@@ -61,6 +61,7 @@ class DFS_Admin_Cleanup
         $is_allowed = in_array($screen->base, $allowed, true)
             || $screen->post_type === 'page'
             || $screen->post_type === 'post'
+            || $screen->post_type === 'attachment'
             || post_type_supports($screen->post_type, 'editor');
 
         if (!$is_allowed) {
