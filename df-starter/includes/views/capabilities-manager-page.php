@@ -54,7 +54,7 @@ $has_content = !empty($caps) || !empty($post_types);
                                 <span class="dfs-cap-count"><?php echo (int) count($post_types); ?></span>
                             </h3>
                             <p class="description" style="margin: 0 0 .75em;">
-                                <?php esc_html_e('Autorise le rôle Client DF à modifier ces types de contenu comme des articles (la suppression reste interdite).', 'df-starter'); ?>
+                                <?php esc_html_e('Autorise le rôle Client DF à créer, modifier et supprimer ces types de contenu, sans toucher aux articles ni aux pages.', 'df-starter'); ?>
                             </p>
                             <table class="wp-list-table widefat striped dfs-cap-table">
                                 <thead>

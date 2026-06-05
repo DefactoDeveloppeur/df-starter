@@ -81,17 +81,18 @@ class DFS_Roles
 
     /**
      * Autorise le rôle Client DF à gérer certains contenus partageant le
-     * capability_type « post » sans lui accorder les caps natives de
-     * suppression d'articles/pages. On intercepte les meta caps singulières
-     * edit_post / delete_post / read_post pour le seul rôle Client DF :
+     * capability_type « post » sans lui accorder les caps natives d'articles/
+     * pages. On intercepte les meta caps singulières edit_post / delete_post /
+     * read_post pour le seul rôle Client DF, et on les ramène à des caps que
+     * le rôle possède déjà (même principe que pour les médias) :
      *
-     *  - Médias (attachment) : ramenés à « upload_files », cap déjà détenue.
-     *  - CPT listés par managed_post_types() : ces post types sont déclarés
-     *    sans `map_meta_cap => true`, donc WordPress exige la cap singulière
-     *    edit_post / delete_post / read_post que le rôle ne possède pas. On
-     *    rejoue alors le mapping natif de WordPress (vers edit_posts /
-     *    edit_others_posts / edit_published_posts…) pour que ces CPT se
-     *    comportent exactement comme des articles pour ce rôle.
+     *  - Médias (attachment) : ramenés à « upload_files ».
+     *  - CPT cochés en admin (managed_post_types) : ces post types sont
+     *    déclarés sans `map_meta_cap => true`, donc WordPress exige la cap
+     *    singulière edit_post / delete_post / read_post que le rôle n'a pas.
+     *    On les ramène à « edit_others_posts » (édition + suppression) et
+     *    « read », ce qui revient à gérer ces CPT comme un mini-admin sans
+     *    impacter les articles/pages natifs (absents de la liste).
      *
      * @param string[] $caps    Caps primitives résolues par WordPress.
      * @param string   $cap     Meta cap demandée.
@@ -124,28 +125,10 @@ class DFS_Roles
             return $caps;
         }
 
-        $post_type = get_post_type_object($post->post_type);
-        if (!$post_type) {
-            return $caps;
-        }
-
-        // Le CPT est déjà déclaré avec map_meta_cap=true : WordPress mappe
-        // correctement vers les caps plurielles, rien à corriger. Ce test
-        // court-circuite aussi notre propre récursion ci-dessous.
-        if ($post_type->map_meta_cap) {
-            return $caps;
-        }
-
-        // On rejoue le mapping standard de WordPress en activant le temps d'un
-        // appel le map_meta_cap natif sur l'objet du post type, puis on le
-        // restaure. Le rôle se voit alors exiger exactement les mêmes caps
-        // plurielles que pour un article natif (qu'il possède déjà).
-        $post_type->map_meta_cap = true;
-        try {
-            return map_meta_cap($cap, $user_id, ...$args);
-        } finally {
-            $post_type->map_meta_cap = false;
-        }
+        // Lecture → « read » ; édition et suppression → « edit_others_posts ».
+        // Le rôle détient ces deux caps : le client peut donc modifier ET
+        // supprimer les CPT sélectionnés, sans toucher aux articles/pages.
+        return $cap === 'read_post' ? ['read'] : ['edit_others_posts'];
     }
 
     public static function add_client_df_role(): void
