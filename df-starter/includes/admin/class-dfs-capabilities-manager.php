@@ -84,6 +84,26 @@ class DFS_Capabilities_Manager
 
         update_option(DFS_Roles::OPTION_CAPS, $granted);
 
+        // --- Post types « capability_type => post » gérés par le client. ---
+        $eligible      = array_keys(DFS_Roles::detect_eligible_post_types());
+        $submitted_pts = (isset($_POST['dfs_post_types']) && is_array($_POST['dfs_post_types']))
+            ? array_map('sanitize_key', wp_unslash($_POST['dfs_post_types']))
+            : [];
+
+        // Ne retenir que les CPT éligibles effectivement cochés.
+        $granted_pts = array_values(array_intersect($eligible, $submitted_pts));
+
+        // Conserver les CPT déjà sélectionnés dont le plugin est temporairement
+        // inactif (donc absents de la liste éligible) pour ne pas perdre le choix.
+        $existing_pts = (array) get_option(DFS_Roles::OPTION_POST_TYPES, []);
+        foreach ($existing_pts as $pt) {
+            if (!in_array($pt, $eligible, true) && !in_array($pt, $granted_pts, true)) {
+                $granted_pts[] = $pt;
+            }
+        }
+
+        update_option(DFS_Roles::OPTION_POST_TYPES, $granted_pts);
+
         // Application immédiate sur le rôle.
         (new DFS_Roles())->sync_dynamic_caps();
 

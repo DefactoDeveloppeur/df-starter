@@ -14,18 +14,84 @@ class DFS_Roles
      */
     const OPTION_CAPS = 'dfs_client_df_caps';
 
+    /**
+     * Liste des post types « capability_type => post » que le client peut gérer
+     * comme des articles. Tableau de slugs, alimenté par la page d'admin.
+     */
+    const OPTION_POST_TYPES = 'dfs_client_df_post_types';
+
     public function register(): void
     {
         add_action('init', [$this, 'sync_dynamic_caps']);
-        add_filter('map_meta_cap', [$this, 'allow_attachment_management'], 10, 4);
+        add_filter('map_meta_cap', [$this, 'remap_managed_post_type_caps'], 10, 4);
     }
 
     /**
-     * Autorise le rôle Client DF à modifier et supprimer les médias sans lui
-     * accorder les caps de suppression d'articles/pages. Les attachments
-     * partagent le capability_type « post » : on intercepte donc les meta caps
-     * edit_post / delete_post / read_post pour les seuls attachments et on les
-     * ramène à « upload_files », que le rôle possède déjà.
+     * Post types partageant le capability_type « post » que le rôle Client DF
+     * doit pouvoir gérer comme des articles natifs. À compléter avec les slugs
+     * du projet ; filtrable via le hook `dfs_client_df_post_types` (par ex.
+     * depuis le functions.php du thème).
+     *
+     * Le post type « attachment » est géré à part (mappé sur upload_files).
+     *
+     * @return string[]
+     */
+    public static function managed_post_types(): array
+    {
+        $post_types = (array) get_option(self::OPTION_POST_TYPES, []);
+
+        /**
+         * Filtre la liste des post types « capability_type => post » gérés par
+         * le rôle Client DF (en complément de ceux cochés en admin).
+         *
+         * @param string[] $post_types Slugs de post types.
+         */
+        $post_types = (array) apply_filters('dfs_client_df_post_types', $post_types);
+
+        return array_values(array_unique(array_map('strval', $post_types)));
+    }
+
+    /**
+     * Post types proposables à la sélection en admin : on ne garde que les CPT
+     * (non natifs, avec interface) qui partagent les capacités « post » — seuls
+     * ceux-là sont réellement débloqués par le remap, car le rôle ne possède
+     * que les caps plurielles standards (edit_others_posts, etc.).
+     *
+     * @return array<string,WP_Post_Type> [ slug => objet du post type ]
+     */
+    public static function detect_eligible_post_types(): array
+    {
+        $eligible = [];
+
+        foreach (get_post_types(['_builtin' => false, 'show_ui' => true], 'objects') as $post_type) {
+            if ($post_type->name === 'attachment') {
+                continue;
+            }
+
+            // Partage le capability_type « post » ? (cap plurielle identique).
+            if (($post_type->cap->edit_others_posts ?? '') !== 'edit_others_posts') {
+                continue;
+            }
+
+            $eligible[$post_type->name] = $post_type;
+        }
+
+        return $eligible;
+    }
+
+    /**
+     * Autorise le rôle Client DF à gérer certains contenus partageant le
+     * capability_type « post » sans lui accorder les caps natives de
+     * suppression d'articles/pages. On intercepte les meta caps singulières
+     * edit_post / delete_post / read_post pour le seul rôle Client DF :
+     *
+     *  - Médias (attachment) : ramenés à « upload_files », cap déjà détenue.
+     *  - CPT listés par managed_post_types() : ces post types sont déclarés
+     *    sans `map_meta_cap => true`, donc WordPress exige la cap singulière
+     *    edit_post / delete_post / read_post que le rôle ne possède pas. On
+     *    rejoue alors le mapping natif de WordPress (vers edit_posts /
+     *    edit_others_posts / edit_published_posts…) pour que ces CPT se
+     *    comportent exactement comme des articles pour ce rôle.
      *
      * @param string[] $caps    Caps primitives résolues par WordPress.
      * @param string   $cap     Meta cap demandée.
@@ -33,7 +99,7 @@ class DFS_Roles
      * @param array    $args    $args[0] = ID de l'objet visé.
      * @return string[]
      */
-    public function allow_attachment_management(array $caps, string $cap, int $user_id, array $args): array
+    public function remap_managed_post_type_caps(array $caps, string $cap, int $user_id, array $args): array
     {
         if (!in_array($cap, ['edit_post', 'delete_post', 'read_post'], true)) {
             return $caps;
@@ -44,11 +110,42 @@ class DFS_Roles
         }
 
         $post = get_post($args[0]);
-        if ($post && $post->post_type === 'attachment') {
+        if (!$post) {
+            return $caps;
+        }
+
+        // Les médias partagent le capability_type « post » : on ramène les meta
+        // caps à « upload_files », que le rôle possède déjà.
+        if ($post->post_type === 'attachment') {
             return ['upload_files'];
         }
 
-        return $caps;
+        if (!in_array($post->post_type, self::managed_post_types(), true)) {
+            return $caps;
+        }
+
+        $post_type = get_post_type_object($post->post_type);
+        if (!$post_type) {
+            return $caps;
+        }
+
+        // Le CPT est déjà déclaré avec map_meta_cap=true : WordPress mappe
+        // correctement vers les caps plurielles, rien à corriger. Ce test
+        // court-circuite aussi notre propre récursion ci-dessous.
+        if ($post_type->map_meta_cap) {
+            return $caps;
+        }
+
+        // On rejoue le mapping standard de WordPress en activant le temps d'un
+        // appel le map_meta_cap natif sur l'objet du post type, puis on le
+        // restaure. Le rôle se voit alors exiger exactement les mêmes caps
+        // plurielles que pour un article natif (qu'il possède déjà).
+        $post_type->map_meta_cap = true;
+        try {
+            return map_meta_cap($cap, $user_id, ...$args);
+        } finally {
+            $post_type->map_meta_cap = false;
+        }
     }
 
     public static function add_client_df_role(): void
