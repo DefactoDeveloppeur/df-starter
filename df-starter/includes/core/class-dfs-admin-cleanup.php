@@ -62,7 +62,10 @@ class DFS_Admin_Cleanup
             || $screen->post_type === 'page'
             || $screen->post_type === 'post'
             || $screen->post_type === 'attachment'
-            || post_type_supports($screen->post_type, 'editor');
+            || post_type_supports($screen->post_type, 'editor')
+            // CPT cochés en admin : on autorise leurs écrans (liste, édition,
+            // ajout) même s'ils ne supportent pas l'éditeur de contenu.
+            || in_array($screen->post_type, DFS_Roles::managed_post_types(), true);
 
         if (!$is_allowed) {
             wp_safe_redirect(admin_url('profile.php'));
