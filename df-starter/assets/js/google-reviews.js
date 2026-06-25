@@ -23,16 +23,19 @@
             }
         }
 
-        // Flèches/points : on résout les éléments DANS ce carousel précis.
+        // Flèches/points : ces éléments sont des frères de `el`, placés dans le
+        // container (.dfs-google-reviews__carousel-container) pour le position:
+        // relative. On les résout donc depuis ce container, pas depuis `el`.
+        var scope = el.parentNode || el;
         if (options.navigation === true) {
             options.navigation = {
-                nextEl: el.querySelector('.swiper-button-next'),
-                prevEl: el.querySelector('.swiper-button-prev')
+                nextEl: scope.querySelector('.swiper-button-next'),
+                prevEl: scope.querySelector('.swiper-button-prev')
             };
         }
         if (options.pagination === true) {
             options.pagination = {
-                el: el.querySelector('.swiper-pagination'),
+                el: scope.querySelector('.swiper-pagination'),
                 clickable: true
             };
         }

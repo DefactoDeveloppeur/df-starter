@@ -186,7 +186,7 @@ class DFS_Google_Reviews
         $this->enqueue_assets();
 
         $show_rating = filter_var($atts['show_rating'], FILTER_VALIDATE_BOOLEAN);
-        $count       = max(1, min(5, (int) $atts['count']));
+        $count       = max(1, min(12, (int) $atts['count']));
         $reviews     = array_slice($data['reviews'], 0, $count);
 
         $navigation = filter_var($atts['navigation'], FILTER_VALIDATE_BOOLEAN);
