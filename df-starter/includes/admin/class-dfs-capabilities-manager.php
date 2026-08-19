@@ -59,55 +59,30 @@ class DFS_Capabilities_Manager
             wp_die(esc_html__('Nonce invalide ou expiré.', 'df-starter'));
         }
 
-        $manageable = DFS_Roles::detect_plugin_caps();
-        $submitted  = (isset($_POST['dfs_caps']) && is_array($_POST['dfs_caps']))
-            ? array_map('sanitize_text_field', wp_unslash($_POST['dfs_caps']))
+        $listed = (isset($_POST['dfs_menu_slugs']) && is_array($_POST['dfs_menu_slugs']))
+            ? array_map('sanitize_text_field', wp_unslash($_POST['dfs_menu_slugs']))
             : [];
 
-        $granted = [];
-
-        // 1) Les caps détectées et cochées sont accordées.
-        foreach ($manageable as $cap) {
-            if (in_array($cap, $submitted, true)) {
-                $granted[$cap] = true;
-            }
-        }
-
-        // 2) On conserve les caps accordées dont le plugin est temporairement
-        //    inactif (donc absentes du formulaire) pour ne pas perdre le réglage.
-        $existing = (array) get_option(DFS_Roles::OPTION_CAPS, []);
-        foreach ($existing as $cap => $value) {
-            if ($value && !in_array($cap, $manageable, true)) {
-                $granted[$cap] = true;
-            }
-        }
-
-        update_option(DFS_Roles::OPTION_CAPS, $granted);
-
-        // --- Post types « capability_type => post » gérés par le client. ---
-        $eligible      = array_keys(DFS_Roles::detect_eligible_post_types());
-        $submitted_pts = (isset($_POST['dfs_post_types']) && is_array($_POST['dfs_post_types']))
-            ? array_map('sanitize_key', wp_unslash($_POST['dfs_post_types']))
+        $visible = (isset($_POST['dfs_visible_menus']) && is_array($_POST['dfs_visible_menus']))
+            ? array_map('sanitize_text_field', wp_unslash($_POST['dfs_visible_menus']))
             : [];
 
-        // Ne retenir que les CPT éligibles effectivement cochés.
-        $granted_pts = array_values(array_intersect($eligible, $submitted_pts));
+        // Masqué = listé dans le formulaire mais non coché « visible ».
+        $hidden = array_values(array_diff($listed, $visible));
 
-        // Conserver les CPT déjà sélectionnés dont le plugin est temporairement
-        // inactif (donc absents de la liste éligible) pour ne pas perdre le choix.
-        $existing_pts = (array) get_option(DFS_Roles::OPTION_POST_TYPES, []);
-        foreach ($existing_pts as $pt) {
-            if (!in_array($pt, $eligible, true) && !in_array($pt, $granted_pts, true)) {
-                $granted_pts[] = $pt;
+        // Conserver les menus masqués absents du formulaire (plugin
+        // temporairement inactif) pour ne pas perdre le réglage.
+        $existing = (array) get_option(DFS_Roles::OPTION_HIDDEN_MENUS, []);
+        foreach ($existing as $slug) {
+            if (!in_array($slug, $listed, true) && !in_array($slug, $hidden, true)) {
+                $hidden[] = $slug;
             }
         }
 
-        update_option(DFS_Roles::OPTION_POST_TYPES, $granted_pts);
+        update_option(DFS_Roles::OPTION_HIDDEN_MENUS, $hidden);
 
-        // Application immédiate sur le rôle.
-        $roles = new DFS_Roles();
-        $roles->sync_dynamic_caps();
-        $roles->sync_managed_post_type_caps();
+        // Application immédiate du miroir de caps sur le rôle.
+        (new DFS_Roles())->sync_caps();
 
         wp_safe_redirect(add_query_arg(
             ['page' => self::PAGE_SLUG, 'updated' => '1'],
@@ -125,78 +100,36 @@ class DFS_Capabilities_Manager
     }
 
     /**
-     * Regroupe les capacités par plugin. On ignore les verbes CRUD en tête de
-     * cap pour retomber sur le « sujet » (ex : manage_woocommerce => woocommerce,
-     * amelia_read_menu => amelia).
+     * Menus top-level proposables au masquage : le menu admin tel que vu par
+     * l'administrateur courant, sans les séparateurs ni les menus toujours
+     * masqués pour le client (extensions, réglages, starter…).
      *
-     * @param string[] $caps
-     * @return array<string,string[]> [ clé de groupe => caps triées ]
+     * @return array<string,string> [ slug de menu => libellé ]
      */
-    public static function group_caps(array $caps): array
+    public static function manageable_menus(): array
     {
-        $verbs = [
-            'edit', 'read', 'delete', 'manage', 'view', 'publish', 'create',
-            'update', 'install', 'uninstall', 'list', 'remove', 'promote',
-            'activate', 'deactivate', 'switch', 'moderate', 'import', 'export',
-            'add', 'assign', 'access',
-        ];
+        $items = [];
 
-        $groups = [];
+        foreach ((array) ($GLOBALS['menu'] ?? []) as $item) {
+            $slug  = (string) ($item[2] ?? '');
+            $title = (string) ($item[0] ?? '');
 
-        foreach ($caps as $cap) {
-            $parts = explode('_', $cap);
-            $key   = null;
-
-            foreach ($parts as $part) {
-                if (!in_array($part, $verbs, true)) {
-                    $key = $part;
-                    break;
-                }
+            if ($slug === '' || strpos($slug, 'separator') === 0) {
+                continue;
+            }
+            if (in_array($slug, DFS_Admin_Cleanup::FORCED_HIDDEN_MENUS, true)) {
+                continue;
             }
 
-            if ($key === null || $key === '') {
-                $key = $parts[0] ?? 'autres';
+            // Retire les pastilles de compteur (« <span class="update-plugins">… »).
+            $label = trim(wp_strip_all_tags(preg_replace('/<span.*$/s', '', $title)));
+            if ($label === '') {
+                $label = $slug;
             }
 
-            $groups[$key][] = $cap;
+            $items[$slug] = $label;
         }
 
-        ksort($groups);
-        foreach ($groups as &$group) {
-            sort($group);
-        }
-        unset($group);
-
-        return $groups;
-    }
-
-    /**
-     * Nom lisible d'un groupe de capacités.
-     */
-    public static function friendly_group(string $key): string
-    {
-        $map = [
-            'amelia'       => 'Amelia',
-            'rank'         => 'Rank Math SEO',
-            'wpseo'        => 'Yoast SEO',
-            'woocommerce'  => 'WooCommerce',
-            'shop'         => 'WooCommerce',
-            'wc'           => 'WooCommerce',
-            'elementor'    => 'Elementor',
-            'wpforms'      => 'WPForms',
-            'gravityforms' => 'Gravity Forms',
-            'gform'        => 'Gravity Forms',
-            'acf'          => 'Advanced Custom Fields',
-        ];
-
-        return $map[$key] ?? ucwords(str_replace(['-', '_'], ' ', $key));
-    }
-
-    /**
-     * Transforme une capacité en libellé lisible (sans le préfixe du groupe).
-     */
-    public static function cap_label(string $cap): string
-    {
-        return ucfirst(str_replace('_', ' ', $cap));
+        return $items;
     }
 }

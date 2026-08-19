@@ -6,10 +6,44 @@ if (!defined('ABSPATH')) {
 
 class DFS_Admin_Cleanup
 {
+    /**
+     * Menus top-level toujours masqués pour le client, en plus de ceux
+     * décochés dans « Accès Client DF ». Les écrans correspondants sont aussi
+     * bloqués dans restrict_admin_access() : le masquage seul ne suffit pas.
+     */
+    const FORCED_HIDDEN_MENUS = [
+        'tools.php',
+        'edit-comments.php',
+        'plugins.php',
+        'themes.php',
+        'users.php',
+        'options-general.php',
+        // Réglages du starter : jamais pour le client, même avec manage_options.
+        'df-settings',
+    ];
+
+    /**
+     * Bases d'écrans core interdites au client. Le rôle n'a pas les caps
+     * « admin » pour la plupart (extensions, thèmes, utilisateurs…), mais
+     * manage_options ouvrirait les réglages : on bloque explicitement.
+     */
+    const BLOCKED_SCREEN_BASES = [
+        'plugins', 'plugin-install', 'plugin-editor',
+        'themes', 'theme-install', 'theme-editor', 'site-editor',
+        'customize', 'nav-menus', 'widgets',
+        'users', 'user-new', 'user-edit', 'user',
+        'tools', 'import', 'export', 'site-health',
+        'export-personal-data', 'erase-personal-data',
+        'update-core', 'update',
+        'options-general', 'options-writing', 'options-reading',
+        'options-discussion', 'options-media', 'options-permalink',
+        'options-privacy',
+        'edit-comments', 'comment',
+    ];
+
     public function register(): void
     {
         add_action('admin_menu', [$this, 'remove_menus_for_client_df'], 999);
-        add_action('admin_menu', [$this, 'add_managed_post_type_menus'], 998);
         add_action('current_screen', [$this, 'restrict_admin_access']);
         add_action('admin_init', [$this, 'hide_updates']);
         add_action('admin_bar_menu', [$this, 'customize_admin_bar'], 999);
@@ -28,63 +62,15 @@ class DFS_Admin_Cleanup
             return;
         }
 
-        remove_menu_page('tools.php');
-        remove_menu_page('edit-comments.php');
-        remove_menu_page('plugins.php');
-        remove_menu_page('themes.php');
-        remove_menu_page('users.php');
-        remove_menu_page('options-general.php');
-        remove_submenu_page('index.php', 'update-core.php');
-    }
-
-    /**
-     * Menu de repli pour les CPT cochés en admin dont le menu natif est
-     * invisible pour le client : `show_in_menu => false` (le plugin gère son
-     * menu à la main, souvent réservé à `manage_options`, ex. DF APIMMO) ou
-     * accroché en sous-menu d'une page que le client ne voit pas. Sans cela,
-     * le client a les droits sur le contenu mais aucun point d'entrée.
-     */
-    public function add_managed_post_type_menus(): void
-    {
-        if (!$this->should_restrict()) {
-            return;
+        foreach (self::FORCED_HIDDEN_MENUS as $slug) {
+            remove_menu_page($slug);
         }
+        remove_submenu_page('index.php', 'update-core.php');
 
-        foreach (DFS_Roles::managed_post_types() as $slug) {
-            $post_type = get_post_type_object($slug);
-            if (!$post_type || !$post_type->show_ui) {
-                continue;
-            }
-
-            // WordPress affiche déjà le menu natif dans ce cas.
-            if ($post_type->show_in_menu === true) {
-                continue;
-            }
-
-            $edit_cap = $post_type->cap->edit_posts ?? 'edit_posts';
-            if (!current_user_can($edit_cap)) {
-                continue;
-            }
-
-            $parent_slug = 'edit.php?post_type=' . $slug;
-
-            add_menu_page(
-                $post_type->labels->name,
-                $post_type->labels->menu_name ?? $post_type->labels->name,
-                $edit_cap,
-                $parent_slug,
-                '',
-                $post_type->menu_icon ?: 'dashicons-admin-post',
-                is_numeric($post_type->menu_position) ? (int) $post_type->menu_position : 26
-            );
-
-            add_submenu_page(
-                $parent_slug,
-                $post_type->labels->add_new_item ?? __('Ajouter', 'df-starter'),
-                $post_type->labels->add_new ?? __('Ajouter', 'df-starter'),
-                $post_type->cap->create_posts ?? $edit_cap,
-                'post-new.php?post_type=' . $slug
-            );
+        // Menus décochés dans « Accès Client DF » (le blocage réel des écrans
+        // est fait dans restrict_admin_access).
+        foreach (DFS_Roles::hidden_menus() as $slug) {
+            remove_menu_page($slug);
         }
     }
 
@@ -108,30 +94,47 @@ class DFS_Admin_Cleanup
             return;
         }
 
-        $allowed = ['dashboard', 'edit', 'upload', 'media', 'edit.php?post_type=page', 'profile'];
+        $is_blocked = in_array($screen->base, self::BLOCKED_SCREEN_BASES, true)
+            // options.php en GET liste et édite toutes les options du site. En
+            // POST il sert de handler aux réglages des plugins (Settings API) :
+            // on le laisse passer, chaque option_page étant protégée par nonce.
+            || ($screen->base === 'options' && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST')
+            || $this->is_hidden_menu_screen($screen);
 
-        // CPT à capacités dédiées (capability_type personnalisé) : si le rôle
-        // détient la cap d'édition du post type (accordée via la page « Accès
-        // Client DF »), ses écrans sont autorisés.
-        $post_type_object = $screen->post_type ? get_post_type_object($screen->post_type) : null;
-        $has_custom_edit_cap = $post_type_object
-            && !in_array($post_type_object->cap->edit_posts ?? '', ['edit_posts', 'edit_pages', ''], true)
-            && current_user_can($post_type_object->cap->edit_posts);
-
-        $is_allowed = in_array($screen->base, $allowed, true)
-            || $screen->post_type === 'page'
-            || $screen->post_type === 'post'
-            || $screen->post_type === 'attachment'
-            || post_type_supports($screen->post_type, 'editor')
-            // CPT cochés en admin : on autorise leurs écrans (liste, édition,
-            // ajout) même s'ils ne supportent pas l'éditeur de contenu.
-            || in_array($screen->post_type, DFS_Roles::managed_post_types(), true)
-            || $has_custom_edit_cap;
-
-        if (!$is_allowed) {
+        if ($is_blocked) {
             wp_safe_redirect(admin_url('profile.php'));
             exit;
         }
+    }
+
+    /**
+     * L'écran courant appartient-il à un menu masqué pour le client (décoché
+     * en admin ou toujours masqué) ?
+     */
+    private function is_hidden_menu_screen(WP_Screen $screen): bool
+    {
+        $hidden = array_merge(DFS_Roles::hidden_menus(), self::FORCED_HIDDEN_MENUS);
+
+        // Menu de CPT : son slug de menu est « edit.php?post_type=x ».
+        if ($screen->post_type && in_array('edit.php?post_type=' . $screen->post_type, $hidden, true)) {
+            return true;
+        }
+
+        // Page déclarée via add_menu_page/add_submenu_page : on compare le slug
+        // de la page et celui de son menu parent.
+        $plugin_page = $GLOBALS['plugin_page'] ?? null;
+        if ($plugin_page) {
+            if (in_array($plugin_page, $hidden, true)) {
+                return true;
+            }
+
+            $parent = function_exists('get_admin_page_parent') ? get_admin_page_parent() : '';
+            if ($parent && in_array($parent, $hidden, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function hide_updates(): void

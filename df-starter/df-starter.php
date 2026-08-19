@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Defacto - Starter Pack
  * Description: Mise en place des configurations minimum pour les sites créés par DEFACTO.
- * Version: 2.2.7.5
+ * Version: 2.2.7.6
  * Author: DEFACTO
  * Author URI: https://www.studiodefacto.com
  * Text Domain: df-starter
@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DFS_VERSION', '2.2.7.5');
+define('DFS_VERSION', '2.2.7.6');
 define('DFS_FILE', __FILE__);
 define('DFS_PATH', plugin_dir_path(__FILE__));
 define('DFS_URL', plugin_dir_url(__FILE__));
