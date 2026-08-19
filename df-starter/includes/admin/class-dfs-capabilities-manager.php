@@ -105,7 +105,9 @@ class DFS_Capabilities_Manager
         update_option(DFS_Roles::OPTION_POST_TYPES, $granted_pts);
 
         // Application immédiate sur le rôle.
-        (new DFS_Roles())->sync_dynamic_caps();
+        $roles = new DFS_Roles();
+        $roles->sync_dynamic_caps();
+        $roles->sync_managed_post_type_caps();
 
         wp_safe_redirect(add_query_arg(
             ['page' => self::PAGE_SLUG, 'updated' => '1'],

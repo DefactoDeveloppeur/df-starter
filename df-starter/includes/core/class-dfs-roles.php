@@ -15,22 +15,24 @@ class DFS_Roles
     const OPTION_CAPS = 'dfs_client_df_caps';
 
     /**
-     * Liste des post types « capability_type => post » que le client peut gérer
-     * comme des articles. Tableau de slugs, alimenté par la page d'admin.
+     * Liste des post types que le client peut gérer. Tableau de slugs,
+     * alimenté par la page d'admin.
      */
     const OPTION_POST_TYPES = 'dfs_client_df_post_types';
 
     public function register(): void
     {
         add_action('init', [$this, 'sync_dynamic_caps']);
+        // Priorité tardive : les CPT des plugins sont enregistrés sur init 10,
+        // il faut qu'ils existent pour lire leurs capacités.
+        add_action('init', [$this, 'sync_managed_post_type_caps'], 99);
         add_filter('map_meta_cap', [$this, 'remap_managed_post_type_caps'], 10, 4);
     }
 
     /**
-     * Post types partageant le capability_type « post » que le rôle Client DF
-     * doit pouvoir gérer comme des articles natifs. À compléter avec les slugs
-     * du projet ; filtrable via le hook `dfs_client_df_post_types` (par ex.
-     * depuis le functions.php du thème).
+     * Post types que le rôle Client DF doit pouvoir gérer comme des articles
+     * natifs. Filtrable via le hook `dfs_client_df_post_types` (par ex. depuis
+     * le functions.php du thème).
      *
      * Le post type « attachment » est géré à part (mappé sur upload_files).
      *
@@ -41,8 +43,8 @@ class DFS_Roles
         $post_types = (array) get_option(self::OPTION_POST_TYPES, []);
 
         /**
-         * Filtre la liste des post types « capability_type => post » gérés par
-         * le rôle Client DF (en complément de ceux cochés en admin).
+         * Filtre la liste des post types gérés par le rôle Client DF (en
+         * complément de ceux cochés en admin).
          *
          * @param string[] $post_types Slugs de post types.
          */
@@ -52,10 +54,14 @@ class DFS_Roles
     }
 
     /**
-     * Post types proposables à la sélection en admin : on ne garde que les CPT
-     * (non natifs, avec interface) qui partagent les capacités « post » — seuls
-     * ceux-là sont réellement débloqués par le remap, car le rôle ne possède
-     * que les caps plurielles standards (edit_others_posts, etc.).
+     * Post types proposables à la sélection en admin : tous les CPT non natifs
+     * dotés d'une interface d'administration. Deux mécanismes de déblocage
+     * selon leur déclaration :
+     *
+     *  - capability_type « post » : remap des meta caps singulières vers les
+     *    caps que le rôle possède déjà (cf. remap_managed_post_type_caps).
+     *  - capability_type personnalisé (ex. « product ») : les caps dédiées du
+     *    post type sont accordées au rôle (cf. sync_managed_post_type_caps).
      *
      * @return array<string,WP_Post_Type> [ slug => objet du post type ]
      */
@@ -68,15 +74,91 @@ class DFS_Roles
                 continue;
             }
 
-            // Partage le capability_type « post » ? (cap plurielle identique).
-            if (($post_type->cap->edit_others_posts ?? '') !== 'edit_others_posts') {
-                continue;
-            }
-
             $eligible[$post_type->name] = $post_type;
         }
 
         return $eligible;
+    }
+
+    /**
+     * Caps dédiées d'un post type à capability_type personnalisé : toutes les
+     * caps qu'il déclare, hors caps natives WordPress. Un CPT en
+     * capability_type « post » renvoie une liste vide : lui est débloqué par le
+     * remap des meta caps, sans toucher aux caps du rôle.
+     *
+     * Les meta caps singulières (edit_product, etc.) sont volontairement
+     * incluses : pour un CPT déclaré sans `map_meta_cap => true`, WordPress
+     * exige littéralement ces caps, et les accorder au rôle revient à un accès
+     * « mini-admin » sur ce seul post type.
+     *
+     * @return string[]
+     */
+    private static function custom_caps_for(WP_Post_Type $post_type): array
+    {
+        // capability_type « post » (cap plurielle identique) : rien à accorder.
+        if (($post_type->cap->edit_others_posts ?? '') === 'edit_others_posts') {
+            return [];
+        }
+
+        $caps = [];
+
+        foreach ((array) $post_type->cap as $cap) {
+            if (!is_string($cap) || $cap === '' || in_array($cap, self::core_caps(), true)) {
+                continue;
+            }
+            $caps[] = $cap;
+        }
+
+        return array_values(array_unique($caps));
+    }
+
+    /**
+     * Aligne les caps du rôle sur la liste des post types cochés en admin :
+     * accorde les caps dédiées des CPT sélectionnés, retire celles des CPT
+     * décochés. Ne concerne que les CPT à capability_type personnalisé ; les
+     * CPT en capability_type « post » passent par le remap des meta caps.
+     */
+    public function sync_managed_post_type_caps(): void
+    {
+        $role = get_role(self::ROLE_SLUG);
+        if (!$role) {
+            return;
+        }
+
+        $managed = self::managed_post_types();
+        $grant   = [];
+        $revoke  = [];
+
+        foreach (get_post_types(['_builtin' => false], 'objects') as $post_type) {
+            $caps = self::custom_caps_for($post_type);
+            if (!$caps) {
+                continue;
+            }
+
+            if (in_array($post_type->name, $managed, true)) {
+                $grant = array_merge($grant, $caps);
+            } else {
+                $revoke = array_merge($revoke, $caps);
+            }
+        }
+
+        // Un capability_type peut être partagé par plusieurs CPT (WooCommerce,
+        // etc.) : ne retirer que les caps qu'aucun CPT coché n'utilise, et
+        // jamais une cap accordée par ailleurs via la liste des capacités.
+        $granted_caps = array_keys(array_filter((array) get_option(self::OPTION_CAPS, [])));
+        $revoke       = array_diff($revoke, $grant, $granted_caps);
+
+        foreach (array_unique($grant) as $cap) {
+            if (empty($role->capabilities[$cap])) {
+                $role->add_cap($cap, true);
+            }
+        }
+
+        foreach ($revoke as $cap) {
+            if (!empty($role->capabilities[$cap])) {
+                $role->remove_cap($cap);
+            }
+        }
     }
 
     /**

@@ -56,7 +56,15 @@ class DFS_Admin_Cleanup
             return;
         }
 
-        $allowed = ['edit', 'upload', 'media', 'edit.php?post_type=page', 'profile'];
+        $allowed = ['dashboard', 'edit', 'upload', 'media', 'edit.php?post_type=page', 'profile'];
+
+        // CPT à capacités dédiées (capability_type personnalisé) : si le rôle
+        // détient la cap d'édition du post type (accordée via la page « Accès
+        // Client DF »), ses écrans sont autorisés.
+        $post_type_object = $screen->post_type ? get_post_type_object($screen->post_type) : null;
+        $has_custom_edit_cap = $post_type_object
+            && !in_array($post_type_object->cap->edit_posts ?? '', ['edit_posts', 'edit_pages', ''], true)
+            && current_user_can($post_type_object->cap->edit_posts);
 
         $is_allowed = in_array($screen->base, $allowed, true)
             || $screen->post_type === 'page'
@@ -65,7 +73,8 @@ class DFS_Admin_Cleanup
             || post_type_supports($screen->post_type, 'editor')
             // CPT cochés en admin : on autorise leurs écrans (liste, édition,
             // ajout) même s'ils ne supportent pas l'éditeur de contenu.
-            || in_array($screen->post_type, DFS_Roles::managed_post_types(), true);
+            || in_array($screen->post_type, DFS_Roles::managed_post_types(), true)
+            || $has_custom_edit_cap;
 
         if (!$is_allowed) {
             wp_safe_redirect(admin_url('profile.php'));
