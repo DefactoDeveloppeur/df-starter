@@ -9,6 +9,7 @@ class DFS_Admin_Cleanup
     public function register(): void
     {
         add_action('admin_menu', [$this, 'remove_menus_for_client_df'], 999);
+        add_action('admin_menu', [$this, 'add_managed_post_type_menus'], 998);
         add_action('current_screen', [$this, 'restrict_admin_access']);
         add_action('admin_init', [$this, 'hide_updates']);
         add_action('admin_bar_menu', [$this, 'customize_admin_bar'], 999);
@@ -34,6 +35,57 @@ class DFS_Admin_Cleanup
         remove_menu_page('users.php');
         remove_menu_page('options-general.php');
         remove_submenu_page('index.php', 'update-core.php');
+    }
+
+    /**
+     * Menu de repli pour les CPT cochés en admin dont le menu natif est
+     * invisible pour le client : `show_in_menu => false` (le plugin gère son
+     * menu à la main, souvent réservé à `manage_options`, ex. DF APIMMO) ou
+     * accroché en sous-menu d'une page que le client ne voit pas. Sans cela,
+     * le client a les droits sur le contenu mais aucun point d'entrée.
+     */
+    public function add_managed_post_type_menus(): void
+    {
+        if (!$this->should_restrict()) {
+            return;
+        }
+
+        foreach (DFS_Roles::managed_post_types() as $slug) {
+            $post_type = get_post_type_object($slug);
+            if (!$post_type || !$post_type->show_ui) {
+                continue;
+            }
+
+            // WordPress affiche déjà le menu natif dans ce cas.
+            if ($post_type->show_in_menu === true) {
+                continue;
+            }
+
+            $edit_cap = $post_type->cap->edit_posts ?? 'edit_posts';
+            if (!current_user_can($edit_cap)) {
+                continue;
+            }
+
+            $parent_slug = 'edit.php?post_type=' . $slug;
+
+            add_menu_page(
+                $post_type->labels->name,
+                $post_type->labels->menu_name ?? $post_type->labels->name,
+                $edit_cap,
+                $parent_slug,
+                '',
+                $post_type->menu_icon ?: 'dashicons-admin-post',
+                is_numeric($post_type->menu_position) ? (int) $post_type->menu_position : 26
+            );
+
+            add_submenu_page(
+                $parent_slug,
+                $post_type->labels->add_new_item ?? __('Ajouter', 'df-starter'),
+                $post_type->labels->add_new ?? __('Ajouter', 'df-starter'),
+                $post_type->cap->create_posts ?? $edit_cap,
+                'post-new.php?post_type=' . $slug
+            );
+        }
     }
 
     public function restrict_admin_access(): void
