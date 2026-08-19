@@ -160,6 +160,75 @@ class DFS_Admin_Cleanup
         $wp_admin_bar->remove_node('updates');
         $wp_admin_bar->remove_node('wp-logo');
         $wp_admin_bar->remove_node('comments');
+
+        // Retire tout noeud pointant vers une page d'admin masquée ou bloquée
+        // (« + Nouveau » d'un CPT masqué, raccourcis ajoutés par les plugins…).
+        // La barre s'affiche aussi côté front : on se base sur les URLs.
+        $removed = [];
+
+        foreach ((array) $wp_admin_bar->get_nodes() as $node) {
+            if (!empty($node->href) && $this->links_to_hidden_admin_page((string) $node->href)) {
+                $wp_admin_bar->remove_node($node->id);
+                $removed[$node->id] = true;
+            }
+        }
+
+        // Retire aussi les descendants des noeuds supprimés : un enfant orphelin
+        // serait sinon raccroché à la racine de la barre au rendu.
+        do {
+            $changed = false;
+            foreach ((array) $wp_admin_bar->get_nodes() as $node) {
+                if (!empty($node->parent) && isset($removed[$node->parent])) {
+                    $wp_admin_bar->remove_node($node->id);
+                    $removed[$node->id] = true;
+                    $changed = true;
+                }
+            }
+        } while ($changed);
+    }
+
+    /**
+     * Le lien pointe-t-il vers une page d'admin interdite au client (écran core
+     * bloqué, menu masqué, CPT masqué) ?
+     */
+    private function links_to_hidden_admin_page(string $href): bool
+    {
+        $admin_base = admin_url();
+        if (strpos($href, $admin_base) !== 0) {
+            return false;
+        }
+
+        $relative = substr($href, strlen($admin_base));
+        $path     = (string) (parse_url($relative, PHP_URL_PATH) ?: '');
+
+        $query = [];
+        parse_str((string) parse_url($relative, PHP_URL_QUERY), $query);
+
+        // Fichiers core dont l'écran est bloqué (plugins.php, options-*.php…).
+        foreach (self::BLOCKED_SCREEN_BASES as $base) {
+            if ($path === $base . '.php') {
+                return true;
+            }
+        }
+
+        $hidden = array_merge(DFS_Roles::hidden_menus(), self::FORCED_HIDDEN_MENUS);
+
+        if ($path !== '' && in_array($path, $hidden, true)) {
+            return true;
+        }
+
+        // Page de plugin : admin.php?page=slug.
+        if ($path === 'admin.php' && !empty($query['page']) && in_array($query['page'], $hidden, true)) {
+            return true;
+        }
+
+        // CPT masqué : edit.php?post_type=x, post-new.php?post_type=x…
+        if (!empty($query['post_type'])
+            && in_array('edit.php?post_type=' . $query['post_type'], $hidden, true)) {
+            return true;
+        }
+
+        return false;
     }
 
     public function remove_posts_columns($columns, $post_type)
