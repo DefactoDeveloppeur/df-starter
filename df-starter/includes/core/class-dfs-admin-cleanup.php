@@ -120,6 +120,19 @@ class DFS_Admin_Cleanup
             return true;
         }
 
+        // Articles : le slug du menu est « edit.php » sans post_type, alors que
+        // ses écrans (liste, édition, catégories…) portent le post type « post ».
+        if ($screen->post_type === 'post' && in_array('edit.php', $hidden, true)) {
+            return true;
+        }
+
+        // Médias : slug de menu « upload.php », écrans « upload » (bibliothèque),
+        // « media » (media-new.php) et édition d'un fichier (post type attachment).
+        if (in_array('upload.php', $hidden, true)
+            && (in_array($screen->base, ['upload', 'media'], true) || $screen->post_type === 'attachment')) {
+            return true;
+        }
+
         // Page déclarée via add_menu_page/add_submenu_page : on compare le slug
         // de la page et celui de son menu parent.
         $plugin_page = $GLOBALS['plugin_page'] ?? null;
@@ -194,11 +207,17 @@ class DFS_Admin_Cleanup
     private function links_to_hidden_admin_page(string $href): bool
     {
         $admin_base = admin_url();
-        if (strpos($href, $admin_base) !== 0) {
+        $admin_path = (string) parse_url($admin_base, PHP_URL_PATH);
+
+        // Certains plugins mettent des hrefs relatifs (« /wp-admin/… ») dans
+        // la barre d'admin : on les accepte au même titre que l'URL complète.
+        if (strpos($href, $admin_base) === 0) {
+            $relative = substr($href, strlen($admin_base));
+        } elseif ($admin_path !== '' && strpos($href, $admin_path) === 0) {
+            $relative = substr($href, strlen($admin_path));
+        } else {
             return false;
         }
-
-        $relative = substr($href, strlen($admin_base));
         $path     = (string) (parse_url($relative, PHP_URL_PATH) ?: '');
 
         $query = [];
@@ -214,6 +233,31 @@ class DFS_Admin_Cleanup
         $hidden = array_merge(DFS_Roles::hidden_menus(), self::FORCED_HIDDEN_MENUS);
 
         if ($path !== '' && in_array($path, $hidden, true)) {
+            return true;
+        }
+
+        // Articles masqués (slug « edit.php ») : couvre aussi « + Nouveau →
+        // Article » (post-new.php), dont l'URL ne porte pas de post_type
+        // explicite (défaut « post »).
+        if (in_array('edit.php', $hidden, true) && $path === 'post-new.php' && empty($query['post_type'])) {
+            return true;
+        }
+
+        // « Modifier » (post.php?post=X) : l'URL ne dit pas le type de contenu,
+        // on le résout depuis l'ID pour rattacher le lien à son menu.
+        if ($path === 'post.php' && !empty($query['post'])) {
+            $type = get_post_type((int) $query['post']);
+            if ($type) {
+                $menu = ($type === 'post') ? 'edit.php' : 'edit.php?post_type=' . $type;
+                if (in_array($menu, $hidden, true)) {
+                    return true;
+                }
+            }
+        }
+
+        // Médias masqués (slug « upload.php ») : couvre « + Nouveau → Fichier
+        // média » (media-new.php).
+        if (in_array('upload.php', $hidden, true) && $path === 'media-new.php') {
             return true;
         }
 
